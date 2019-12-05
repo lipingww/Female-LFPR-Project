@@ -1,0 +1,52 @@
+---
+title: 'PPOL 670 Project: Estimate Female Labor Force Participation'
+author: "Liping Wang"
+date: "12/2/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+#Access to World Bank data through "wbstats" package
+library(wbstats)
+```
+```{r}
+wb_data <- wb(indicator = c("SL.TLF.CACT.FE.ZS","NY.GDP.PCAP.CD",
+                            "SE.ADT.LITR.FE.ZS","SP.DYN.TFRT.IN",
+                            "SG.TIM.UWRK.FE", "SE.COM.DURS",
+                            "SE.SEC.CUAT.LO.FE.ZS", 
+                            "SE.TER.CUAT.BA.FE.ZS", 
+                            "SE.XPD.TOTL.GB.ZS"), 
+              startdate = 2005,
+              enddate = 2018,
+              country = "countries_only") %>% as_tibble()
+
+wb_data <- wb_data %>% mutate(year=as.numeric(date)) %>%
+  select(iso3c,year,value,indicatorID,country) %>%
+  spread(key = indicatorID, value = "value")
+
+wb_data <- wb_data %>% select(country=country,ccode=iso3c,year=year,
+                              f_lfpr=SL.TLF.CACT.FE.ZS,
+                              gdp_pcap=NY.GDP.PCAP.CD,
+                              f_literacy_rate=SE.ADT.LITR.FE.ZS,
+                              com_edu=SE.COM.DURS,
+                              f_lower_sec_edu=SE.SEC.CUAT.LO.FE.ZS,
+                              f_ba_edu=SE.TER.CUAT.BA.FE.ZS,
+                              gov_exp_edu=SE.XPD.TOTL.GB.ZS,
+                              f_ptime_chores=SG.TIM.UWRK.FE,
+                              fertility_rate=SP.DYN.TFRT.IN)
+
+wb_data <- wb_data %>% filter(!is.na(f_lfpr))
+
+#split data into training and test data set 
+train_data <- wb_data %>% filter(year < 2016)
+test_data <- wb_data %>% filter(year > 2015)
+```
+
+```{r}
+glimpse(train_data)
+```
+
