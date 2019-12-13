@@ -1,0 +1,116 @@
+---
+title: |
+  | PPOL 670 Project 
+  | Female Labor Force Participation
+author: "Liping Wang"
+date: "12/14/2019"
+output: pdf_document
+fontsize: 12pt
+header-includes: \usepackage{setspace}\doublespacing
+---
+
+**Introduction**
+In almost every country in the world, women are less likely to participate in the labor market than men. Women's economic empowerment and 
+The goal of the project is to explore what are some of the most important factors that explain a country's female labor force participation. 
+
+The relationship between female labor force particiaption and economic growth is hypothesized to be U-shaped
+
+**Problem Statement and Background**
+Despite declining fertility reate, strong expansion of female education 
+A considerable amount of literature provides empirical evidence on the determinants of female labor force particiaption. 
+
+**Data**
+the unit of analysis is country-year 
+these data are derived from labor force or household surveys or from population censuses
+My dependent variable/variable of interest:
+flfp = Labor force participation rate, female (% of female population ages 15+)
+
+\singlespacing
+List of independent variables in my data:
+gdp = GDP per capita (current US$)
+inflation = Inflation, consumer prices (annual %)
+crime = 
+religion = 
+male_unemploy = Unemployment, male (% of male labor force)
+literacy = Literacy rate, adult female (% of females ages 15 and above)
+fertility = Fertility rate, total (births per woman)
+housework = Proportion of time spent on unpaid domestic and care work, female (% of 24 hours day)
+fam_plan = Contraceptive prevalence, any methods (% of women ages 15-49)
+compulsory_educ = Compulsory education, duration (years)
+educ_exp = Government expenditure on education, total (% of government expenditure)
+primary_enroll = School enrollment, primary, female (% net)
+secondary_enroll = School enrollment, secondary, female (% net)
+tertiary_enroll = School enrollment, tertiary, female (% gross)
+
+
+
+The net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding offical school age, which captures individual country's coverage and internal efficiency of each level of the education system. This project uses net enrollment rate to measure
+women's enrollment in primary and secondary education and the gross enrollment rate for tertiary education which requires the completion of education at the secondary level and often can be pursued without age restriction. 
+
+
+**Reference**
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(tidyverse)
+require(dplyr)
+require(ggplot2)
+require(lubridate)
+require(wbstats) #World Bank "wbstats" package
+require(rvest)
+```
+
+```{r,include=FALSE}
+wb_data <- wb(indicator = c("SL.TLF.CACT.FE.ZS",
+                            "NY.GDP.PCAP.CD","FP.CPI.TOTL.ZG",
+                            "SL.UEM.TOTL.MA.ZS","SE.ADT.LITR.FE.ZS",
+                            "SP.DYN.TFRT.IN","SG.TIM.UWRK.FE",
+                            "SP.DYN.CONU.ZS","SE.XPD.TOTL.GB.ZS",
+                            "SE.PRM.NENR.FE","SE.SEC.NENR.FE",
+                            "SE.TER.ENRR.FE"),
+              startdate = 2000,
+              enddate = 2018,
+              country = "countries_only") %>% as_tibble()
+
+wb_data <- wb_data %>% mutate(year=as.numeric(date)) %>%
+  select(iso3c,year,value,indicatorID,country) %>%
+  spread(key = indicatorID, value = "value")
+
+wb_data <- wb_data %>% select(country = country,
+                              ccode = iso3c,
+                              year = year,
+                              flfp = SL.TLF.CACT.FE.ZS,
+                              gdp = NY.GDP.PCAP.CD,
+                              inflation = FP.CPI.TOTL.ZG,
+                              male_unemploy = SL.UEM.TOTL.MA.ZS,
+                              literacy = SE.ADT.LITR.FE.ZS,
+                              fertility = SP.DYN.TFRT.IN,
+                              housework = SG.TIM.UWRK.FE,
+                              fam_plan = SP.DYN.CONU.ZS,
+                              educ_exp = SE.XPD.TOTL.GB.ZS, 
+                              primary_enroll = SE.PRM.NENR.FE,
+                              secondary_enroll = SE.SEC.NENR.FE,
+                              tertiary_enroll = SE.TER.ENRR.FE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+wb_data <- wb_data %>% filter(!is.na(f_lfpr))
+
+#split data into training and test data set 
+train_data <- wb_data %>% filter(year < 2016)
+test_data <- wb_data %>% filter(year > 2015)
+glimpse(train_data)
+```
+
