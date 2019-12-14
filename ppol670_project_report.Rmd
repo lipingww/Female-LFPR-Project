@@ -8,7 +8,6 @@ output:
 header-includes: \usepackage{setspace}\doublespacing
 fontsize: 12pt
 ---
-## Introduction
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -23,21 +22,6 @@ require(stringr)
 require(tibble)
 require(stargazer)
 ```
-
-In almost every country in the world, women are less likely to participate in the labor market than men. Women's economic empowerment and 
-The goal of the project is to explore what are some of the most important factors that explain a country's female labor force participation. 
-
-The relationship between female labor force particiaption and economic growth is hypothesized to be U-shaped
-
-## Problem Statement and Background
-Despite declining fertility reate, strong expansion of female education 
-A considerable amount of literature provides empirical evidence on the determinants of female labor force particiaption. 
-
-## Data
-the unit of analysis is country-year 
-these data are derived from labor force or household surveys or from population censuses
-My dependent variable/variable of interest:
-flfp = Labor force participation rate, female (% of female population ages 15+)
 
 ```{r,include=FALSE}
 var_list <- tibble(Variable=c("gdp","inflation","gpi","*religion",
@@ -59,29 +43,6 @@ var_list <- tibble(Variable=c("gdp","inflation","gpi","*religion",
                                  "School enrollment, secondary, female (% net)",
                                  "School enrollment, tertiary, female (% gross)"))
 ```
-
-```{r,echo=FALSE}
-knitr::kable(var_list)
-```
-
-
-The net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding offical school age, which captures individual country's coverage and internal efficiency of each level of the education system. This project uses net enrollment rate to measure
-women's enrollment in primary and secondary education and the gross enrollment rate for tertiary education which requires the completion of education at the secondary level and often can be pursued without age restriction. 
-
-GPI: the lower the better 
-
-## Analysis
-
-## Results
-
-## Discussion
-
-
-## Reference
-Data:
-https://www.pewforum.org/2015/04/02/religious-projection-table/2010/percent/all/
-https://en.wikipedia.org/wiki/Global_Peace_Index
-
 
 ```{r,include=FALSE}
 #World Bank Indicators
@@ -194,3 +155,58 @@ master_data <- master_data %>% group_by(country) %>%
 master_data <- ungroup(master_data)
 ```
 
+```{r,include=FALSE}
+master_data_test <- master_data
+
+corr = master_data_test %>% select(-country,-jews) %>% cor(use = "p")
+ggcorrplot::ggcorrplot(corr,hc.order = TRUE,type="lower", lab=FALSE)
+
+```
+
+## Introduction
+
+|      In almost every country in the world, women are less likely to participate in the labor market than men. There are various push and pull factors that explain why women work less than men. Taking care of children and family members, doing household chores, and all other activities that are outside of the formal labor market can prevent women from pursuing employment opportunities. Social and cultural norms that discourage female's labor force participation are also prevalent in some countries. Women are more likely to work if the legal and policy frameworks are supportive of women’s labor market engagement, such as flexibility of working hours and environment, taxation, and family support services. 
+|      Higher levels of female labor force participation are expected to fuel household income and overall economic growth because of more workers contributing to the economy. Women's economic empowerment may bring them more bargaining power and autonomy, especially in developing countries (Anderson et al., 2009). As labor force participation directly affects a country's economic growth, the benefits of increasing women's participation in labor markets are expected to be phenomenal for the overall economy. Theoretically, the relationship between female labor force participation and GDP per capita is hypothesized to be U-shaped (2019). Among the low-income countries, female labor force participation rates (LFPR) are the highest because they are often engaged in labor-intensive agricultural activities. As GDP rises, women whose households experience income growth might prefer activities outside of the labor market, causing the female LFPR to decline. Furthermore, once economic development and industrialization shift more jobs from farms to factories, the female LFPR will start to climb. This positive relationship between the female LFPR and GDP per capita often occurs among middle-income to high-income countries because of rapid economic growth, increased female education, and decreased fertility rates (Klasen, 2019). 
+|      While women’s labor force participation has risen in many countries, rates remain quite low in some upper-middle-income countries and regions where the trends are expected to grow. Certainly, GDP is not the only factor that determines female labor force participation. Therefore, this project aims to explore what are some of the important factors that explain a country's female labor force participation. Understanding these determinants of female labor force participation will help policymakers to remove potential barriers for women, which are important for economic growth. My goal is to build a model that can explain the majority of the variation in female LFPR using the data before 2015. The success of the project will be determined by the model accuracy using the test data between 2015 and 2018.   
+|      I started this project by thinking about the factors that could have a potential influence on the level of labor force participation for females in a country. Then I collected data on those indicators to build my own dataset, including merging data from different sources. After data wrangling and cleaning, I explored the relationships among some explanatory variables and examined variable importance through visualization. Using the training dataset, I tried different types of supervised machine learning algorithms, such as the k-nearest neighbors and random forest, to determine the best algorithm for my model. In the last section, I discussed my findings, the overall project success, and recommendation on the next steps.  
+
+## Problem Statement and Background
+
+|      As stated above, the goal of this project is to explore the determinants of female labor force participation and build a model that can explain the majority of the variation in female LFPR. 
+
+|      A considerable amount of literature provides empirical evidence on the determinants of female labor force participation in the context of a specific country. Studies hardly focus on cross-country analysis, and many only investigate the relationship between one broad factor and female labor force particiaption, such as GDP and religion. However, Mehmood et al. (2015) develop a generalized model for the factors that affect female labor force participation in Muslim countries. Their results show that education attinment, especially tertiary education, has a positive link with female LFPR. They also find that as the number of children in the family increases, the female LDPR decreases, which is not surprising. Interestingly, they discover a positive relationship between inflation and female participation in the labor market. One possible explanation is that the increasing cost of living driven by inflation puts financial pressure on females and pushes them to bring more income to their households. Besides, Bayanpourtehran and Sylwester (2012) conduct a cross-country analysis to examine whether female LFPR is dependent on the religion practiced in these countries. They conclude that countries where Protestantism is prevalent or where no religion is practiced have higher female LFPR, but the relationship between female LFPR and religion has weakened over time. 
+
+## Data
+|    The majority of the data in this project comes from the built-in "wbstats" R-package that contains World Development Indicators collected by the World Bank Group. The detailed list of indicators selected for this project is shown below. 
+
+```{r,echo=FALSE}
+knitr::kable(var_list)
+```
+
+|      Besides, I collected a vector of variables that measure the religious composition by country in 2010, including Buddhists, Christians, Folk Religions, Hindus, Jews, Muslims, Other and Unaffiliated from Pew Research Center. I also scraped the Global Peace Index from Wikipedia, which measures the relative position of each nation and region's peacefulness. Since GPI assesses the level of safety and security in society, it is a good indicator to capture women's difficulties in commuting to work in a country. 
+|      The unit of analysis for this project is country-year, and the main variable of interest is the female labor force participation rate. Before merging the data from three different sources, I ensured the unit of analysis in each dataset is country-year. Additional data cleaning needed to be done in the religion dataset, where the values for each variable contain "<" or ">" and are non-numeric. For the GPI dataset, I removed all irrelevant information and transformed the wide-format data into the long format. Lastly, I combined all three datasets using full-join to create the master dataset for this project.  
+|      The description of each variable is presented in the above table. It is worth noting that the net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding official school age. I chose the net rate for primary and secondary education because it is more accurate in terms of capturing the individual country's coverage and internal efficiency of each level of the education system. I selected the gross rate for tertiary education because it requires the completion of education at the secondary level and often can be pursued without age restriction. For the Global Peace Index, nations are considered more peaceful if they have lower index scores. 
+
+## Analysis
+
+## Results
+
+## Discussion
+different ways to impute missing values 
+
+## Reference
+
+\singlespacing
+|    Anderson, Siwan & Eswaran, Mukesh, 2009. "What determines female autonomy? Evidence from Bangladesh," Journal of Development Economics, Elsevier, vol. 90(2), pages 179-191, November.
+
+|    Bayanpourtehrani, G., & Sylwester, K. (2013). Female labour force participation and religion: A cross‐country analysis. Bulletin of Economic Research, 65(2), 107-133. doi:10.1111/j.1467-8586.2012.00443.x
+
+|    Council of Economic Advisers. (2019). Relationship between female labor force participation rates and GDP. Retrieved from https://www.whitehouse.gov/articles/relationship-female-labor-force-participation-rates-gdp/
+
+|    Klasen, S. (2019). What explains uneven female labor force participation levels and trends in developing countries? The World Bank Research Observer, 34(2), 161-197. doi:10.1093/wbro/lkz005
+
+|    Mehmood, B. (2015). What derives female labor force participation in muslim countries? Retrieved from http://www.econis.eu/PPNSET?PPN=1040633110
+
+Data:
+https://www.pewforum.org/2015/04/02/religious-projection-table/2010/percent/all/
+https://en.wikipedia.org/wiki/Global_Peace_Index
