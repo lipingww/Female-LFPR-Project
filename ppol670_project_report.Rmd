@@ -1,55 +1,14 @@
 ---
-title: |
-  | PPOL 670 Project 
-  | Female Labor Force Participation
+title: "| PPOL 670 Project \n| Female Labor Force Participation\n"
 author: "Liping Wang"
 date: "12/14/2019"
-output: pdf_document
-fontsize: 12pt
+output:
+  pdf_document:
+    toc: true
 header-includes: \usepackage{setspace}\doublespacing
+fontsize: 12pt
 ---
-
-**Introduction**
-In almost every country in the world, women are less likely to participate in the labor market than men. Women's economic empowerment and 
-The goal of the project is to explore what are some of the most important factors that explain a country's female labor force participation. 
-
-The relationship between female labor force particiaption and economic growth is hypothesized to be U-shaped
-
-**Problem Statement and Background**
-Despite declining fertility reate, strong expansion of female education 
-A considerable amount of literature provides empirical evidence on the determinants of female labor force particiaption. 
-
-**Data**
-the unit of analysis is country-year 
-these data are derived from labor force or household surveys or from population censuses
-My dependent variable/variable of interest:
-flfp = Labor force participation rate, female (% of female population ages 15+)
-
-\singlespacing
-List of independent variables in my data:
-gdp = GDP per capita (current US$)
-inflation = Inflation, consumer prices (annual %)
-crime = 
-religion = 
-male_unemploy = Unemployment, male (% of male labor force)
-literacy = Literacy rate, adult female (% of females ages 15 and above)
-fertility = Fertility rate, total (births per woman)
-housework = Proportion of time spent on unpaid domestic and care work, female (% of 24 hours day)
-fam_plan = Contraceptive prevalence, any methods (% of women ages 15-49)
-compulsory_educ = Compulsory education, duration (years)
-educ_exp = Government expenditure on education, total (% of government expenditure)
-primary_enroll = School enrollment, primary, female (% net)
-secondary_enroll = School enrollment, secondary, female (% net)
-tertiary_enroll = School enrollment, tertiary, female (% gross)
-
-
-
-The net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding offical school age, which captures individual country's coverage and internal efficiency of each level of the education system. This project uses net enrollment rate to measure
-women's enrollment in primary and secondary education and the gross enrollment rate for tertiary education which requires the completion of education at the secondary level and often can be pursued without age restriction. 
-
-
-**Reference**
-
+## Introduction
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -59,9 +18,73 @@ require(ggplot2)
 require(lubridate)
 require(wbstats) #World Bank "wbstats" package
 require(rvest)
+require(readxl)
+require(stringr)
+require(tibble)
+require(stargazer)
 ```
 
+In almost every country in the world, women are less likely to participate in the labor market than men. Women's economic empowerment and 
+The goal of the project is to explore what are some of the most important factors that explain a country's female labor force participation. 
+
+The relationship between female labor force particiaption and economic growth is hypothesized to be U-shaped
+
+## Problem Statement and Background
+Despite declining fertility reate, strong expansion of female education 
+A considerable amount of literature provides empirical evidence on the determinants of female labor force particiaption. 
+
+## Data
+the unit of analysis is country-year 
+these data are derived from labor force or household surveys or from population censuses
+My dependent variable/variable of interest:
+flfp = Labor force participation rate, female (% of female population ages 15+)
+
 ```{r,include=FALSE}
+var_list <- tibble(Variable=c("gdp","inflation","gpi","*religion",
+                              "male_unemploy","literacy","fertility","housework",
+                              "fam_plan","compulsory_educ","educ_exp",
+                              "primary_enroll","secondary_enroll","tertiary_enroll"),
+                   Description=c("GDP per capita (current US$)",
+                                 "Inflation, consumer prices (annual %)",
+                                 "Global Peace Index (GPI)",
+                                 "A vector of religion variables",
+                                 "Unemployment, male (% of male labor force)",
+                                 "Literacy rate, adult female (% of females ages 15 and above)",
+                                 "Fertility rate, total (births per woman)",
+                                 "% of time spent on unpaid domestic and care work, female",
+                                 "Contraceptive prevalence, any methods (% of women ages 15-49)",
+                                 "Compulsory education, duration (years)",
+                                 "Total % of Government expenditure on education",
+                                 "School enrollment, primary, female (% net)",
+                                 "School enrollment, secondary, female (% net)",
+                                 "School enrollment, tertiary, female (% gross)"))
+```
+
+```{r,echo=FALSE}
+knitr::kable(var_list)
+```
+
+
+The net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding offical school age, which captures individual country's coverage and internal efficiency of each level of the education system. This project uses net enrollment rate to measure
+women's enrollment in primary and secondary education and the gross enrollment rate for tertiary education which requires the completion of education at the secondary level and often can be pursued without age restriction. 
+
+GPI: the lower the better 
+
+## Analysis
+
+## Results
+
+## Discussion
+
+
+## Reference
+Data:
+https://www.pewforum.org/2015/04/02/religious-projection-table/2010/percent/all/
+https://en.wikipedia.org/wiki/Global_Peace_Index
+
+
+```{r,include=FALSE}
+#World Bank Indicators
 wb_data <- wb(indicator = c("SL.TLF.CACT.FE.ZS",
                             "NY.GDP.PCAP.CD","FP.CPI.TOTL.ZG",
                             "SL.UEM.TOTL.MA.ZS","SE.ADT.LITR.FE.ZS",
@@ -94,23 +117,80 @@ wb_data <- wb_data %>% select(country = country,
                               tertiary_enroll = SE.TER.ENRR.FE)
 ```
 
+```{r,include=FALSE}
+#Religion Indicator from Pew Research Center (% of population for each religious belief)
+religion <- read_excel("Religious_Composition_by_Country_2010-2050.xlsx")
+religion <- religion %>% mutate(year=as.numeric(Year)) %>%
+  select(country=Country,year=year,
+         buddhists=Buddhists,
+         christians=Christians,
+         folk=`Folk Religions`,
+         hindus=Hindus,
+         jews=Jews,
+         muslims=Muslims,
+         other=`Other Religions`,
+         unaffiliated=Unaffiliated) %>% 
+  filter(country !="All Countries"& year==2010)
 
+#remove "<" and ">" in the dataframe
+religion <- religion %>% mutate(buddhists=str_remove(buddhists, pattern="<"),
+                                christians=str_remove(christians,pattern = "<"),
+                                christians=str_remove(christians,pattern = ">"),
+                                folk=str_remove(folk,pattern = "<"),
+                                hindus=str_remove(hindus,pattern = "<"),
+                                jews=str_remove(jews,pattern="<"),
+                                muslims=str_remove(muslims,pattern = "<"),
+                                muslims=str_remove(muslims,pattern = ">"),
+                                other=str_remove(other,pattern = "<"),
+                                unaffiliated=str_remove(unaffiliated,pattern = "<")) 
 
+religion <- religion %>% mutate_at(vars(-country, -year), as.numeric)
+```
 
+```{r,cache=TRUE,include=FALSE}
+#Global Peace Index Scraped from Wikipedia
+url <- "https://en.wikipedia.org/wiki/Global_Peace_Index"
+web <- read_html(url)
+wikitable <- web %>% html_table(fill=TRUE)
+gpi <- wikitable[[2]]
 
+gpi <- gpi %>% select(country=Country,
+                      `2019`=`2019 score[12]`,
+                      `2018`=`2018 score[13]`,
+                      `2017`=`2017 score[2]`,
+                      `2016`=`2016 score[14]`,
+                      `2015`=`2015 score[15]`,
+                      `2014`=`2014 score[16]`,
+                      `2013`=`2013 score[17]`,
+                      `2012`=`2012 score[18],[19]`,
+                      `2011`=`2011 score[20]`,
+                      `2010`=`2010 score[21]`,
+                      `2009`=`2009 score`,
+                      `2008`=`2008 score`) 
+#removed data from 2019 to be consistent with selected years in other dataset 
+gpi <- gpi %>% gather(year,gpi,-country) %>% filter(year != "2019") %>% mutate(year=as.numeric(year))
+```
 
+```{r,include=FALSE}
+#Merge Three datasets
+master_data <- full_join(wb_data,religion,by = c("country","year")) 
+master_data <- full_join(master_data,gpi,by = c("country","year"))
+```
 
+```{r,include=FALSE}
+master_data <- master_data %>% select(-ccode) %>% filter(!is.na(flfp))
 
+#Since info about religion is only from 2010 and the percentage of religious populations is unlikely to change much, I extract the value from 2010 and apply it to all other years 
+master_data <- master_data %>% group_by(country) %>%
+  mutate(buddhists = if_else(is.na(buddhists),mean(buddhists,na.rm = T),buddhists),
+         christians = if_else(is.na(christians),mean(christians,na.rm = T),christians),
+         folk = if_else(is.na(folk),mean(folk,na.rm = T),folk),
+         hindus = if_else(is.na(hindus),mean(hindus,na.rm = T),hindus),
+         jews = if_else(is.na(jews),mean(jews,na.rm = T),jews),
+         muslims = if_else(is.na(muslims),mean(muslims,na.rm = T),muslims),
+         other = if_else(is.na(other),mean(other,na.rm = T),other),
+         unaffiliated = if_else(is.na(unaffiliated),mean(unaffiliated,na.rm = T),unaffiliated))
 
-
-
-
-```{r}
-wb_data <- wb_data %>% filter(!is.na(f_lfpr))
-
-#split data into training and test data set 
-train_data <- wb_data %>% filter(year < 2016)
-test_data <- wb_data %>% filter(year > 2015)
-glimpse(train_data)
+master_data <- ungroup(master_data)
 ```
 
