@@ -21,6 +21,7 @@ require(readxl)
 require(stringr)
 require(tibble)
 require(stargazer)
+require(gridExtra)
 ```
 
 ```{r,include=FALSE}
@@ -155,14 +156,6 @@ master_data <- master_data %>% group_by(country) %>%
 master_data <- ungroup(master_data)
 ```
 
-```{r,include=FALSE}
-master_data_test <- master_data
-
-corr = master_data_test %>% select(-country,-jews) %>% cor(use = "p")
-ggcorrplot::ggcorrplot(corr,hc.order = TRUE,type="lower", lab=FALSE)
-
-```
-
 ## Introduction
 
 |      In almost every country in the world, women are less likely to participate in the labor market than men. There are various push and pull factors that explain why women work less than men. Taking care of children and family members, doing household chores, and all other activities that are outside of the formal labor market can prevent women from pursuing employment opportunities. Social and cultural norms that discourage female's labor force participation are also prevalent in some countries. Women are more likely to work if the legal and policy frameworks are supportive of women’s labor market engagement, such as flexibility of working hours and environment, taxation, and family support services. 
@@ -184,12 +177,93 @@ knitr::kable(var_list)
 ```
 
 |      Besides, I collected a vector of variables that measure the religious composition by country in 2010, including Buddhists, Christians, Folk Religions, Hindus, Jews, Muslims, Other and Unaffiliated from Pew Research Center. I also scraped the Global Peace Index from Wikipedia, which measures the relative position of each nation and region's peacefulness. Since GPI assesses the level of safety and security in society, it is a good indicator to capture women's difficulties in commuting to work in a country. 
-|      The unit of analysis for this project is country-year, and the main variable of interest is the female labor force participation rate. Before merging the data from three different sources, I ensured the unit of analysis in each dataset is country-year. Additional data cleaning needed to be done in the religion dataset, where the values for each variable contain "<" or ">" and are non-numeric. For the GPI dataset, I removed all irrelevant information and transformed the wide-format data into the long format. Lastly, I combined all three datasets using full-join to create the master dataset for this project.  
+|      The unit of analysis for this project is country-year, and the main variable of interest is the female labor force participation rate (% of female population ages 15+). Before merging the data from three different sources, I ensured the unit of analysis in each dataset is country-year. Additional data cleaning needed to be done in the religion dataset, where the values for each variable contain "<" or ">" and are non-numeric. For the GPI dataset, I removed all irrelevant information and 2019 data and transformed the wide-format data into the long format. Lastly, I combined all three datasets using full-join to create the master dataset that includes data between 2000 and 2018 for this project.  
 |      The description of each variable is presented in the above table. It is worth noting that the net enrollment rate is the ratio of children of official school age who are enrolled in school to the total population of the corresponding official school age. I chose the net rate for primary and secondary education because it is more accurate in terms of capturing the individual country's coverage and internal efficiency of each level of the education system. I selected the gross rate for tertiary education because it requires the completion of education at the secondary level and often can be pursued without age restriction. For the Global Peace Index, nations are considered more peaceful if they have lower index scores. 
+|      Due to the nature of this dataset, many variables have missing values because they are from surveys that are only conducted once in several years. Variables that contain missing values should not be dropped in this case since the non-missing values may provide valuable information to my analysis. Therefore, for all the variables related to religion, which are only from 2010, I filled in missing values with the same value from 2010 for each country. That means if the United States had 80% of Christians in 2010, then I assumed it had the same percentage of Christians in all other years since religion composition in each country does not vary much over time and can be very different across countries. For all other missing values, I used the K nearest neighbor algorithm to impute missing data by finding the k closest neighbors to the observation with missing data and then imputing them based on the non-missing values in the neighbors. The reason why I did not impute those missing values by using the information from the same country was that some countries were never surveyed to collect information about variables like housework and primary school enrollment from 2000 to 2018. However, variables like housework and primary school enrollment can be estimated based on other variables in the dataset, such as GDP per capita, years of compulsory education, literacy rate, etc. 
 
 ## Analysis
+|      Before I started my analysis, I first split my master dataset into training data (before 2015) and test data (after 2014). Then I examined the distribution of my dependent variable - flfp and other selected variables. Both of the dependent variable and independent variables have lots of (good) variations. I also explored the relationships between the female LFPR and some other independent variables. 
+
+```{r,include=FALSE}
+#split data into training and test data set 
+train_data <- master_data %>% filter(year < 2015)
+test_data <- master_data %>% filter(year > 2014)
+```
+
+```{r,include=FALSE}
+flfp_plot <- train_data %>% ggplot() + geom_point(aes(x=year, y=flfp))
+flfp_plot
+
+gpi_plot <- train_data %>% ggplot() + geom_point(aes(x=year, y=gpi))
+gpi_plot
+
+housework_plot <- train_data %>% ggplot() + geom_point(aes(x=year, y=housework))
+housework_plot
+```
+
+```{r, include=FALSE}
+p1<- ggplot(data=train_data) +
+  geom_point(aes(x=gdp, y=flfp,alpha=0.3))+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title = element_text(face="bold",hjust=0.5))+
+  labs(title = "Female LFPR vs GDP Per Capita",
+       x="GDP Per Capita",
+       y="Female LFPR")
+
+p2 <- ggplot(data=train_data)+
+  geom_point(aes(x=fertility,y=flfp,alpha=0.8,color="red"))+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title = element_text(face="bold",hjust=0.5))+
+  labs(title = "Female LFPR vs Fertility Rate",
+       x="Fertility Rate",
+       y="Female LFPR")
+
+p3 <- ggplot(data=train_data,aes(x=gpi,y=flfp))+
+  geom_point(color="darkgreen",alpha=0.8)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title = element_text(face="bold",hjust=0.5))+
+  labs(title = "Female LFPR vs Global Peace Index",
+       x="Global Peace Index",
+       y="Female LFPR")
+
+p4 <- ggplot(data=train_data,aes(x=unaffiliated,y=flfp))+
+  geom_point(color="steelblue",alpha=0.8)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title = element_text(face="bold",hjust=0.5))+
+  labs(title = "Female LFPR vs No Religion",
+       x="% of Population With No Religious Belief",
+       y="Female LFPR")
+```
+
+```{r,warning=FALSE,echo=FALSE}
+grid.arrange(p1,p2,p3,p4,nrow=2,ncol=2)
+```
+
+|      The graph that shows the correlation between the indicators is presented below. Next, I tried different algorithms to build a machine learning model to see how well it can predict the female LFPR. The methods I explored were linear regression model, k-nearest neighbors, regression trees, and random forest. 
+
+```{r,echo=FALSE}
+corr = train_data %>% select(-country,-year,-jews) %>% cor(use = "p")
+corr_plot <- ggcorrplot::ggcorrplot(corr,hc.order = TRUE,type="lower", lab=FALSE)
+corr_plot
+```
+
+|      The linear regression model assumes the form of f(x) is linear, which means we will predict
+the price of a property using a linear model.
+
+
+
+
+
+
 
 ## Results
+
+
+
 
 ## Discussion
 different ways to impute missing values 
