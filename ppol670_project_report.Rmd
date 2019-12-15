@@ -14,7 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 require(tidyverse)
 require(dplyr)
 require(ggplot2)
-require(lubridate)
 require(wbstats) #World Bank "wbstats" package
 require(rvest)
 require(readxl)
@@ -22,6 +21,10 @@ require(stringr)
 require(tibble)
 require(stargazer)
 require(gridExtra)
+require(recipes)
+require(caret)
+require(vip)
+require(pdp)
 ```
 
 ```{r,include=FALSE}
@@ -45,7 +48,7 @@ var_list <- tibble(Variable=c("gdp","inflation","gpi","*religion",
                                  "School enrollment, tertiary, female (% gross)"))
 ```
 
-```{r,include=FALSE}
+```{r,include=FALSE,cache=TRUE}
 #World Bank Indicators
 wb_data <- wb(indicator = c("SL.TLF.CACT.FE.ZS",
                             "NY.GDP.PCAP.CD","FP.CPI.TOTL.ZG",
@@ -243,7 +246,7 @@ p4 <- ggplot(data=train_data,aes(x=unaffiliated,y=flfp))+
 grid.arrange(p1,p2,p3,p4,nrow=2,ncol=2)
 ```
 
-|      The graph that shows the correlation between the indicators is presented below. Next, I tried different algorithms to build a machine learning model to see how well it can predict the female LFPR. The methods I explored were linear regression model, k-nearest neighbors, regression trees, and random forest. 
+|      The graph that shows the correlation between the indicators is presented below. Next, I tried different algorithms to build a machine learning model to see how well it can predict the female LFPR. The methods I explored were multiple linear regression model, k-nearest neighbors, and random forest. 
 
 ```{r,echo=FALSE}
 corr = train_data %>% select(-country,-year,-jews) %>% cor(use = "p")
@@ -251,22 +254,133 @@ corr_plot <- ggcorrplot::ggcorrplot(corr,hc.order = TRUE,type="lower", lab=FALSE
 corr_plot
 ```
 
-|      The linear regression model assumes the form of f(x) is linear, which means we will predict
-the price of a property using a linear model.
-
-
-
-
-
-
+|      The multiple linear regression model assumes the form of f(x) is linear, which means the relationship between female LFPR and the explanatory (independent) variables is linear. The linear relationship is a strong assumption and probably will not hold since there are many outliers in the dataset, as shown in the previous graphs. However, this model is straightforward and easy to interpret. The k-nearest neighbors model works by searching through the entire training dataset for the K closet neighbors and summarizing the output variable for those K neighbors. This algorithm is easy to implement and requires no training before making predictions. Therefore, adding new data will not impact the accuracy of this method. The idea behind the random forest model is to combine many decision trees into a single model, which helps me to improve my predictions by gathering information from each decision tree. Decision tree is a method for classifying subjects into groups. It will work well if the female LFPR can be clustered into groups based on the other variables in the dataset. All three models have advantages and disadvantages, so I tried all three to see which one has better predictive performance. 
 
 ## Results
+```{r,include=FALSE,warning=FALSE}
+#pre-process the data; drop irrelevant variables
+train_data1 <- train_data %>% select(-country,-year)
+#Generate the recipe for preprocessing the data
+my_recipe <- recipe(flfp~., data=train_data1) %>%
+  step_knnimpute(all_predictors()) %>%
+  step_range(all_numeric()) %>%
+  prep()
+#Apply the recipe to the training and test data
+train_data2 <- bake(my_recipe, train_data)
+test_data2 <- bake(my_recipe, test_data)
+```
+
+```{r,include=FALSE}
+#Set cross-validation
+set.seed(0521)
+folds <- createFolds(train_data2$flfp,k=5)
+sapply(folds,length)
+cross_val <- trainControl(method = "cv", index = folds)
+```
+
+```{r,include=FALSE,warning=FALSE}
+#Linear Regression Model
+model_lm <- train(flfp~., data=train_data2, method="lm", metric="RMSE",trControl=cross_val)
+model_lm
+```
+
+```{r,include=FALSE,warning=FALSE}
+#K-nearest Neighbors(KNN)
+knn_tune = expand.grid(k=c(1,2,3,4))
+
+model_knn <- train(flfp~.,data = train_data2, method="knn",
+                   metric="RMSE",trControl=cross_val, 
+                   tuneGrid=knn_tune)
+model_knn
+```
+
+```{r,include=FALSE,warning=FALSE}
+#Random Forest(ranger)
+tune_rf = expand.grid(mtry=c(5,10,15), splitrule="variance", min.node.size=5)
+
+model_rf <- train(flfp~., data=train_data2,method="ranger",
+                  metric="RMSE", trControl=cross_val,tuneGrid=tune_rf,importance = 'impurity')
+model_rf
+```
+
+|      After running all three models, the Random Forest algorithm has the best performance in terms of predicting the female LFPR, which has the smallest RMSE. The RMSE is the standard deviation of the residuals, which measures the prediction errors. The RMSE in the Random Forest model is 0.107, while the RMSE for the other two models is over 0.11. The Linear Regression model produced the largest RMSE, which is the result as expected. The R-squared in the Random Forest model is 0.72, which means 72% of the variation in female LFPR can be explained by the existing independent variables in the model. 
+|      Then I used the data from 2015 to 2018 to test the Random Forest model's prediction accuracy. The result using the test data shows that the RMSE is 0.0997, which is lower than the value from training data. The similarity in the two RMSE values indicates that the Random Forest model does well in estimating the female LFPR. 
+
+```{r,include=FALSE}
+model_all <- list(lm=model_lm, knn=model_knn, rf=model_rf)
+resamples(model_all)
+model_compare <- dotplot(resamples(model_all), metric= "RMSE")
+```
+
+```{r,echo=FALSE,fig.height=4, fig.width=4,fig.align='center'}
+model_compare
+```
+
+```{r,include=FALSE}
+#Test the out-of-sample predictive performance
+prediction <-predict(model_rf, newdata = test_data2)
+rmse = sqrt(sum((test_data2$flfp - prediction)^2/nrow(test_data2)))
+rmse
+```
+
+|      For the next step, I examined the variable importance. I found that the five most important variables that can explain the female LFPR are Muslims, housework, gdp, Christians, and the tertiary enrollment rate for females. The results indicate that religion is an important factor that affects a country's female labor force particiption. By further examining the marginal effect of the percentage of Muslims in a country on female LFPR, I found that when the percentage of Muslims is greater than 75%, female LFPR starts to decrease dramatically. This result explains why the female labor force participation in Turkey is exceptionally low compared to international standards. For the second important variable "housework", the marginal effect on female LFPR is similar. When women spend a significant amount of time on household chores, their labor force participation decreases. However, it seems that there is heterogeneity in the prediction, as shown in the two graphs below. Reasons for heterogeneity need to be further examined. 
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,fig.height=4, fig.width=4,fig.align='center'}
+#Examine Variable Importance
+plot(varImp(model_rf,scale=T),top = 10)
+```
+
+```{r,include=FALSE}
+pdp_dat = pdp::partial(model_rf, pred.var = c("muslims"), 
+                        ice = F, 
+                        center = F, 
+                        prob = T,
+                        type= "regression",
+                        train = train_data2) 
+
+p5 = pdp_dat %>% ggplot() + geom_line(aes(x=muslims,y=yhat)) + labs(y="Female LFPR")
 
 
+pdp_dat2 = pdp::partial(model_rf, pred.var = c("housework"), 
+                        ice = F, 
+                        center = F, 
+                        prob = T,
+                        type= "regression",
+                        train = train_data2) 
 
+p6 = pdp_dat2 %>% ggplot() + geom_line(aes(x=housework,y=yhat)) + labs(y="Female LFPR")
+```
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE,fig.height=3}
+grid.arrange(p5,p6,nrow=1)
+```
+
+```{r,include=FALSE}
+ice_dat = pdp::partial(model_rf, pred.var = c("muslims"), 
+                        ice = T, center = T, 
+                        prob = T,type= "regression", 
+                        train = train_data2) 
+ice_dat2 = pdp::partial(model_rf, pred.var = c("housework"), 
+                        ice = T, center = T, 
+                        prob = T,type= "regression", 
+                        train = train_data2) 
+
+```
+
+```{r,include=FALSE}
+p7 = ice_dat %>% ggplot() + geom_line(aes(muslims,yhat,group=yhat.id),alpha=.05) +
+  labs(y="Female LFPR")
+p8 = ice_dat2 %>% ggplot() + geom_line(aes(housework,yhat,group=yhat.id),alpha=.05) +
+  labs(y="Female LFPR")
+```
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE,fig.height=3}
+grid.arrange(p7,p8,nrow=1)
+```
 
 ## Discussion
-different ways to impute missing values 
+|      As I stated at the beginning of this report, the success of the project is determined by whether I can find a model that explains the most variations in female LFPR and high model accuracy.  Since the Random Forest model explained 72% of the variations in female LFPR, the model is considered as a success. And the low RMSE value using the test data showed the model accuracy is high. Among all the methods we learned in class, I did not run the Regression Trees model because it is similar to the Random Forest model, and based on the rule of thumb, the Random Forest model usually performs better. 
+|      In this project, I did not try different ways to impute missing values other than using the k-nearest neighbor method, which may not be the best practice to deal with the missing values. Besides, since the Random Forest model only explains the 72% variations in female LFPR, the left 28% variations could be due to other factors that I did not collect, such as indicators related to the legal framework in the country. Therefore, I could expand my analysis to getting more data on potential factors that can affect female labor force particiation. 
 
 ## Reference
 
@@ -280,7 +394,19 @@ different ways to impute missing values
 |    Klasen, S. (2019). What explains uneven female labor force participation levels and trends in developing countries? The World Bank Research Observer, 34(2), 161-197. doi:10.1093/wbro/lkz005
 
 |    Mehmood, B. (2015). What derives female labor force participation in muslim countries? Retrieved from http://www.econis.eu/PPNSET?PPN=1040633110
-
-Data:
-https://www.pewforum.org/2015/04/02/religious-projection-table/2010/percent/all/
-https://en.wikipedia.org/wiki/Global_Peace_Index
+|    Pew Research Center Data:https://www.pewforum.org/2015/04/02/religious-projection-table/2010/percent/all/
+|    Wikipedia Global Peace Index Data: https://en.wikipedia.org/wiki/Global_Peace_Index
+|    citation(tidyverse)
+|    citation(dplyr)
+|    citation(ggplot2)
+|    citation(wbstats) 
+|    citation(rvest)
+|    citation(readxl)
+|    citation(stringr)
+|    citation(tibble)
+|    citation(stargazer)
+|    citation(gridExtra)
+|    citation(recipes)
+|    citation(caret)
+|    citation(vip)
+|    citation(pdp)
